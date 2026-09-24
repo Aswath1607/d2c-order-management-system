@@ -46,7 +46,7 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold mb-6">Create customer account</h2>
+      <div className="mb-6"><img src="/branding/aurevia-logo-exact.png" alt="Aurevia" className="h-12 w-auto object-contain" /><h2 className="mt-5 text-2xl font-bold">Create customer account</h2></div>
       <form className="space-y-4" onSubmit={handleSubmit}>
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className="w-full border rounded-md px-3 py-2" />
         <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="w-full border rounded-md px-3 py-2" />

@@ -14,6 +14,17 @@ async function login(page: any, email: string, password: string) {
 }
 
 test.describe('D2C Phase 10 E2E', () => {
+  test('Aurevia branding and theme preference persist across refresh', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page).toHaveTitle(/Aurevia Commerce Operations/);
+    await expect(page.getByAltText('Aurevia')).toBeVisible();
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await page.reload();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeVisible();
+  });
+
   test('registration API failure keeps the form visible with an error', async ({ page }) => {
     await page.route('**/auth/register', async (route) => {
       await route.fulfill({

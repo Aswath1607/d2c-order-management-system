@@ -83,6 +83,8 @@ export interface Customer {
   updated_at?: string;
 }
 
+export type CustomerProfilePayload = Omit<Customer, 'customer_id' | 'user_id' | 'status' | 'created_at' | 'updated_at'>;
+
 export interface CustomerAdmin extends Customer {
   name: string;
   is_active: boolean;
@@ -137,6 +139,22 @@ export interface Order {
   updated_at?: string | null;
   items: OrderItem[];
   status_history?: OrderStatusHistoryEntry[];
+  payment?: Payment | null;
+}
+
+export interface Payment {
+  payment_id: number;
+  order_id: number;
+  payment_method: string;
+  payment_status: string;
+  amount: number;
+  currency: string;
+  provider: string;
+  provider_transaction_id?: string | null;
+  payment_reference?: string | null;
+  failure_reason?: string | null;
+  paid_at?: string | null;
+  history?: Array<{ id: number; from_status?: string | null; to_status: string; note?: string | null; changed_by?: string | null; created_at?: string | null }>;
 }
 
 export interface DashboardSummary {

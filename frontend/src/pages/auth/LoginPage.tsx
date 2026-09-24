@@ -34,7 +34,7 @@ export default function LoginPage() {
   return (
     <div className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/30 md:grid-cols-2">
       <div className="relative overflow-hidden bg-slate-950 p-8 text-white md:p-12">
-        <div className="relative z-10"><div className="flex items-center gap-2 text-sm font-bold"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500">D2</span> D2C Commerce</div><h1 className="mt-16 text-4xl font-extrabold tracking-tight">Your store,<br /><span className="text-indigo-400">in motion.</span></h1>
+        <div className="relative z-10"><img src="/branding/aurevia-logo-exact.png" alt="Aurevia" className="h-14 w-auto object-contain" /><h1 className="mt-16 text-4xl font-extrabold tracking-tight">Your store,<br /><span className="text-indigo-400">in motion.</span></h1>
         <p className="mt-5 max-w-sm leading-7 text-slate-300">A calmer way to manage orders, inventory, and customer experiences from one platform.</p><div className="mt-10 flex items-center gap-3 text-sm text-slate-300"><ShoppingBag size={18} className="text-indigo-400" /> Everything in one place</div></div><div className="absolute -bottom-28 -right-28 h-80 w-80 rounded-full border-[35px] border-indigo-500/20" />
       </div>
       <form className="p-8 md:p-12" onSubmit={handleSubmit}>

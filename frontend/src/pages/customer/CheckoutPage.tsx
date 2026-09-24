@@ -97,9 +97,14 @@ export default function CheckoutPage() {
         items: items.map((item) => ({ product_id: item.product.product_id, quantity: item.quantity })),
       };
       const response = await orderApi.create(payload);
+      let completedOrder = response.data;
+      if (paymentMethod !== 'COD') {
+        const paymentResponse = await orderApi.initiatePayment(response.data.order_id);
+        completedOrder = { ...response.data, payment_status: paymentResponse.data.payment_status, payment: paymentResponse.data };
+      }
       clear();
-      setConfirmedOrder(response.data);
-      addToast('Order placed successfully', 'success');
+      setConfirmedOrder(completedOrder);
+      addToast(paymentMethod === 'COD' ? 'Order placed successfully' : 'Sandbox payment approved; no real funds were captured.', 'success');
     } catch (err: any) {
       const message = err?.response?.data?.detail || err?.message || 'Unable to place order. Please try again.';
       setError(message);
@@ -126,12 +131,13 @@ export default function CheckoutPage() {
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-slate-800">Payment method</h3>
           <div className="mt-3 flex flex-wrap gap-3">
-            {['COD'].map((method) => (
+            {['COD', 'UPI', 'CARD', 'NET_BANKING'].map((method) => (
               <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`rounded-lg px-4 py-2 text-sm font-medium ${paymentMethod === method ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-700'}`}>
-                Cash on Delivery
+                {method === 'COD' ? 'Cash on Delivery' : method === 'NET_BANKING' ? 'Net Banking' : method === 'CARD' ? 'Credit / Debit Card' : 'UPI'}
               </button>
             ))}
           </div>
+          {paymentMethod !== 'COD' && <p className="mt-3 text-xs text-slate-500">Sandbox payment mode: this demo uses a mock provider and stores only safe transaction metadata.</p>}
         </div>
 
         {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
