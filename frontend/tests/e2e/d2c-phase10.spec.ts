@@ -14,6 +14,15 @@ async function login(page: any, email: string, password: string) {
 }
 
 test.describe('D2C Phase 10 E2E', () => {
+  test('direct nested routes serve the SPA entry point', async ({ page }) => {
+    for (const route of ['/admin/categories', '/admin/products', '/customer/products', '/customer/cart', '/customer/orders']) {
+      const response = await page.goto(route);
+      expect(response?.status()).toBe(200);
+      await expect(page.locator('body')).toBeVisible();
+      await expect(page.getByRole('heading', { name: /sign in to continue/i })).toBeVisible();
+    }
+  });
+
   test('login opens without prefilled credentials and stays empty after refresh', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByLabel('Email')).toHaveValue('');
