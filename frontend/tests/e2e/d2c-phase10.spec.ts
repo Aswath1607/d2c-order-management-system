@@ -14,6 +14,51 @@ async function login(page: any, email: string, password: string) {
 }
 
 test.describe('D2C Phase 10 E2E', () => {
+  async function mockRoleLogin(page: any, role: 'WORKER' | 'DELIVERY_AGENT' | 'CUSTOMER') {
+    await page.route('**/auth/login', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: `mock-${role}`, token_type: 'bearer' }) });
+    });
+    await page.route('**/auth/me', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 10, name: `${role} User`, email: `${role.toLowerCase()}@example.com`, role, is_active: true }) });
+    });
+    await page.goto('/login');
+    await page.getByLabel('Email').fill(`${role.toLowerCase()}@example.com`);
+    await page.getByLabel('Password').fill('password123');
+    await page.getByRole('button', { name: /sign in/i }).click();
+  }
+
+  test('worker and delivery agent logins reach isolated placeholders', async ({ page }) => {
+    await mockRoleLogin(page, 'WORKER');
+    await expect(page).toHaveURL(/\/worker$/);
+    await expect(page.getByRole('heading', { name: /worker workspace coming soon/i })).toBeVisible();
+
+    await page.evaluate(() => localStorage.clear());
+    await page.unroute('**/auth/me');
+    await page.unroute('**/auth/login');
+    await mockRoleLogin(page, 'DELIVERY_AGENT');
+    await expect(page).toHaveURL(/\/delivery-agent$/);
+    await expect(page.getByRole('heading', { name: /delivery workspace coming soon/i })).toBeVisible();
+  });
+
+  test('new roles cannot access admin or customer-only routes', async ({ page }) => {
+    await mockRoleLogin(page, 'WORKER');
+    await page.goto('/admin');
+    await expect(page).toHaveURL(/\/worker$/);
+    await page.route('**/products*', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], page: 1, page_size: 6, total: 0, total_pages: 0 }) }));
+    await page.route('**/categories*', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], page: 1, page_size: 6, total: 0, total_pages: 0 }) }));
+    await page.goto('/customer');
+    await expect(page).toHaveURL(/\/worker$/);
+
+    await page.evaluate(() => localStorage.clear());
+    await page.unroute('**/auth/me');
+    await page.unroute('**/auth/login');
+    await mockRoleLogin(page, 'CUSTOMER');
+    await page.goto('/worker');
+    await expect(page).toHaveURL(/\/customer$/);
+    await page.goto('/delivery-agent');
+    await expect(page).toHaveURL(/\/customer$/);
+  });
+
   test('direct nested routes serve the SPA entry point', async ({ page }) => {
     for (const route of ['/admin/categories', '/admin/products', '/customer/products', '/customer/cart', '/customer/orders']) {
       const response = await page.goto(route);

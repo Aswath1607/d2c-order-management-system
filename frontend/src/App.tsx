@@ -26,6 +26,8 @@ import AdminOrderDetailPage from './pages/admin/OrderDetailPage';
 import AdminInventoryPage from './pages/admin/InventoryPage';
 import AdminCategoriesPage from './pages/admin/CategoriesPage';
 import CustomerCategoriesPage from './pages/customer/CategoriesPage';
+import WorkerPage from './pages/staff/WorkerPage';
+import DeliveryAgentPage from './pages/staff/DeliveryAgentPage';
 
 export default function App() {
   return (
@@ -64,6 +66,14 @@ export default function App() {
               <Route path="orders/:id" element={<AdminOrderDetailPage />} />
               <Route path="inventory" element={<AdminInventoryPage />} />
             </Route>
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['WORKER']} />}>
+            <Route path="/worker" element={<WorkerPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['DELIVERY_AGENT']} />}>
+            <Route path="/delivery-agent" element={<DeliveryAgentPage />} />
           </Route>
           </Routes>
         </ToastProvider>

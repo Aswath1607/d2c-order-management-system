@@ -12,6 +12,26 @@ class UserLogin(BaseModel):
     password: str
 
 
+class WorkerProfileOut(BaseModel):
+    id: int
+    employee_code: str
+    phone: str | None = None
+    department: str | None = None
+    shift: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class DeliveryAgentProfileOut(BaseModel):
+    id: int
+    agent_code: str
+    phone: str | None = None
+    vehicle_type: str | None = None
+    vehicle_number: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -23,5 +43,7 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     is_active: bool
+    worker_profile: WorkerProfileOut | None = None
+    delivery_agent_profile: DeliveryAgentProfileOut | None = None
 
     model_config = {"from_attributes": True}

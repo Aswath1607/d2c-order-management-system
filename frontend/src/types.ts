@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'CUSTOMER';
+export type Role = 'ADMIN' | 'CUSTOMER' | 'WORKER' | 'DELIVERY_AGENT';
 
 export interface Category {
   category_id: number;

@@ -21,7 +21,8 @@ export default function LoginPage() {
     try {
       const user = await login(email, password);
       addToast('Login successful', 'success');
-      navigate(user.role === 'ADMIN' ? '/admin' : '/customer', { replace: true });
+      const destination = user.role === 'ADMIN' ? '/admin' : user.role === 'CUSTOMER' ? '/customer' : user.role === 'WORKER' ? '/worker' : '/delivery-agent';
+      navigate(destination, { replace: true });
     } catch (err: any) {
       const message = err?.response?.data?.detail || 'Invalid email or password';
       setError(message);

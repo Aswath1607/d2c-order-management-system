@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routes import auth, categories, customers, dashboard, inventory, orders, products
+from app.routes import auth, categories, customers, dashboard, inventory, orders, products, staff
 
 app = FastAPI(
     title="Aurevia Commerce Operations",
@@ -31,4 +31,6 @@ app.include_router(customers.router, prefix="/api/customers", tags=["customers"]
 app.include_router(inventory.router, prefix="/api/inventory", tags=["inventory"])
 app.include_router(orders.router, prefix="/api/orders", tags=["orders"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(staff.workers_router, prefix="/api", tags=["workers"])
+app.include_router(staff.delivery_agents_router, prefix="/api", tags=["delivery-agents"])
 
