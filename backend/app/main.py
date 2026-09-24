@@ -5,9 +5,9 @@ from app.core.config import settings
 from app.routes import auth, categories, customers, dashboard, inventory, orders, products
 
 app = FastAPI(
-    title="D2C Order Management System",
+    title="Aurevia Commerce Operations",
     version="1.0.0",
-    description="Production-style direct-to-consumer order management backend.",
+    description="Commerce operations platform for customer, order, inventory, and payment workflows.",
     docs_url="/docs",
     redoc_url="/redoc",
 )

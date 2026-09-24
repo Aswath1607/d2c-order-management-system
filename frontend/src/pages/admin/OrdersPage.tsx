@@ -22,7 +22,7 @@ const badgeTone = (status: string) => {
   }
 };
 
-const paymentTone = (status: string) => status === 'PAID' ? 'green' : status === 'FAILED' ? 'red' : 'amber';
+const paymentTone = (status: string) => status === 'PAYMENT_SUCCESS' || status === 'PAID' ? 'green' : status === 'PAYMENT_FAILED' || status === 'FAILED' ? 'red' : 'amber';
 const dateLabel = (value?: string | null) => value ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
 
 export default function AdminOrdersPage() {

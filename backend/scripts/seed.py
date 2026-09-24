@@ -79,7 +79,7 @@ def clear_development_data(db) -> None:
 
 def create_users_and_customers(db) -> list[Customer]:
     admin = User(
-        name="D2C Administrator",
+        name="Aurevia Administrator",
         email="admin@example.com",
         password_hash=get_password_hash("admin1234"),
         role="ADMIN",

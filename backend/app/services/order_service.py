@@ -13,6 +13,7 @@ from app.models.product import Product
 from app.models.user import User
 from app.services.alert_service import evaluate_product_alerts
 from app.services.inventory_service import create_inventory_transaction
+from app.services.payment_service import cancel_payment_for_order, create_payment, normalize_payment_method
 
 VALID_ORDER_STATUS_TRANSITIONS = {
     "PENDING": {"CONFIRMED", "CANCELLED"},
@@ -86,6 +87,7 @@ def create_order_transaction(db: Session, customer: Customer, items: list[dict],
     shipping_charge = 0.0 if subtotal >= 1000 else 50.0
     total_amount = subtotal - discount_total + tax_total + shipping_charge
 
+    payment_method = normalize_payment_method(payment_method)
     order = Order(
         order_number=generate_order_number(),
         customer_id=customer.customer_id,
@@ -94,7 +96,7 @@ def create_order_transaction(db: Session, customer: Customer, items: list[dict],
         tax_amount=tax_total,
         shipping_charge=shipping_charge,
         total_amount=total_amount,
-        payment_status="PENDING",
+        payment_status="PAYMENT_PENDING",
         payment_method=payment_method,
         order_status="PENDING",
         shipping_address=shipping_address,
@@ -129,7 +131,8 @@ def create_order_transaction(db: Session, customer: Customer, items: list[dict],
         db.add(order_item)
 
     order.order_status = "CONFIRMED"
-    order.payment_status = "PENDING" if payment_method == "COD" else "PAID"
+    payment = create_payment(db, order, payment_method)
+    order.payment_status = payment.payment_status
     record_order_status_history(db, order, "CONFIRMED", "Order confirmed and queued for fulfillment.", "system")
     db.flush()
 
@@ -151,4 +154,32 @@ def create_order_transaction(db: Session, customer: Customer, items: list[dict],
         )
         evaluate_product_alerts(db, product, inventory)
 
+    return order
+
+
+def cancel_order_transaction(db: Session, order: Order, changed_by: str, note: str | None = None) -> Order:
+    if order.order_status == "CANCELLED":
+        raise HTTPException(status_code=409, detail="Order is already cancelled")
+    if not transition_allowed(order.order_status, "CANCELLED"):
+        raise HTTPException(status_code=409, detail=f"Order cannot transition from {order.order_status} to CANCELLED.")
+
+    for item in order.items:
+        product = db.query(Product).filter(Product.product_id == item.product_id).first()
+        inventory = db.query(Inventory).filter(Inventory.product_id == item.product_id).first()
+        if product and inventory:
+            create_inventory_transaction(
+                db,
+                product,
+                inventory,
+                "RETURN",
+                item.quantity,
+                "ORDER_CANCELLATION",
+                str(order.order_id),
+                f"Stock restored after order {order.order_number} cancellation",
+            )
+
+    order.order_status = "CANCELLED"
+    order.cancelled_at = datetime.now(timezone.utc)
+    cancel_payment_for_order(db, order.payment, changed_by) if order.payment else None
+    record_order_status_history(db, order, "CANCELLED", note or "Order cancelled and stock restored.", changed_by)
     return order

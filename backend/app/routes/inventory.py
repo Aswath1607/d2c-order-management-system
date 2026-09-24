@@ -100,7 +100,11 @@ def update_inventory(product_id: int, payload: InventoryUpdate, db: Session = De
     inventory.warehouse_location = payload.warehouse_location
     inventory.supplier_name = payload.supplier_name
     recalculate_inventory_values(inventory)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Inventory update could not be completed")
     db.refresh(inventory)
     return inventory
 
@@ -114,8 +118,15 @@ def adjust_inventory(product_id: int, quantity: float, payload: InventoryTransac
         raise HTTPException(status_code=400, detail="Adjustment quantity cannot be zero")
     if inventory.stock_quantity + quantity < 0:
         raise HTTPException(status_code=400, detail="Inventory cannot become negative")
-    create_inventory_transaction(db, inventory.product, inventory, "ADJUSTMENT", quantity, "INVENTORY", str(product_id), (payload.remarks if payload else None) or f"Manual inventory adjustment: {quantity}")
-    db.commit()
+    try:
+        create_inventory_transaction(db, inventory.product, inventory, "ADJUSTMENT", quantity, "INVENTORY", str(product_id), (payload.remarks if payload else None) or f"Manual inventory adjustment: {quantity}")
+        db.commit()
+    except ValueError as error:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(error))
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Inventory adjustment could not be completed")
     db.refresh(inventory)
     return inventory
 
@@ -129,7 +140,11 @@ def restock_inventory(product_id: int, quantity: float, payload: InventoryTransa
         raise HTTPException(status_code=400, detail="Restock quantity must be positive")
     inventory.last_restocked_at = datetime.now(timezone.utc)
     create_inventory_transaction(db, inventory.product, inventory, "IN", quantity, "INVENTORY", str(product_id), (payload.remarks if payload else None) or f"Restock for product {product_id}")
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Restock could not be completed")
     db.refresh(inventory)
     return inventory
 

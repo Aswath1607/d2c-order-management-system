@@ -1,4 +1,4 @@
-# D2C Order Management System
+# Aurevia Commerce Operations Platform
 
 A production-style direct-to-consumer order management platform built with FastAPI, SQLAlchemy, PostgreSQL, and React.
 

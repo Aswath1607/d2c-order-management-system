@@ -11,8 +11,9 @@ from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.product import Product
 from app.models.user import User
-from app.schemas.order import OrderCreate, OrderListResponse, OrderOut, OrderStatusHistoryOut
-from app.services.order_service import create_order_transaction, record_order_status_history, transition_allowed
+from app.schemas.order import OrderCreate, OrderListResponse, OrderOut, OrderStatusHistoryOut, PaymentOut
+from app.services.order_service import cancel_order_transaction, create_order_transaction, record_order_status_history, transition_allowed
+from app.services.payment_service import initiate_mock_payment, mark_cod_paid
 
 router = APIRouter()
 
@@ -82,10 +83,55 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db), current_us
     customer = db.query(Customer).filter(Customer.user_id == current_user.id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer profile not found")
-    order = create_order_transaction(db, customer, [item.model_dump() for item in payload.items], payload.shipping_address, payload.payment_method)
-    db.commit()
+    try:
+        order = create_order_transaction(db, customer, [item.model_dump() for item in payload.items], payload.shipping_address, payload.payment_method)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Order could not be created")
     db.refresh(order)
     return order
+
+
+@router.post("/{order_id}/payment", response_model=PaymentOut)
+def initiate_payment(order_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    order = db.query(Order).filter(Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if current_user.role != "ADMIN":
+        customer = db.query(Customer).filter(Customer.user_id == current_user.id).first()
+        if not customer or order.customer_id != customer.customer_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+    if not order.payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    try:
+        payment = initiate_mock_payment(db, order.payment, current_user.email)
+        db.commit()
+        db.refresh(payment)
+        return payment
+    except HTTPException:
+        db.rollback()
+        raise
+
+
+@router.patch("/{order_id}/payment/cod", response_model=PaymentOut)
+def update_cod_payment(order_id: int, payload: dict | None = None, db: Session = Depends(get_db), current_user=Depends(require_admin)):
+    order = db.query(Order).filter(Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not order.payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    try:
+        payment = mark_cod_paid(db, order.payment, current_user.email, (payload or {}).get("reference"))
+        db.commit()
+        db.refresh(payment)
+        return payment
+    except HTTPException:
+        db.rollback()
+        raise
 
 
 @router.patch("/{order_id}/status")
@@ -98,9 +144,19 @@ def update_order_status(order_id: int, payload: dict, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="Order status is required")
     if not transition_allowed(order.order_status, new_status):
         raise HTTPException(status_code=409, detail=f"Order cannot transition from {order.order_status} to {new_status}.")
-    order.order_status = new_status
-    record_order_status_history(db, order, new_status, payload.get("note"), current_user.email)
-    db.commit()
+    try:
+        if new_status == "CANCELLED":
+            cancel_order_transaction(db, order, current_user.email, payload.get("note"))
+        else:
+            order.order_status = new_status
+            record_order_status_history(db, order, new_status, payload.get("note"), current_user.email)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Order status update could not be completed")
     db.refresh(order)
     return order
 
@@ -126,6 +182,6 @@ def delete_order(order_id: int, db: Session = Depends(get_db), current_user=Depe
     order = db.query(Order).filter(Order.order_id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    order.order_status = "CANCELLED"
+    cancel_order_transaction(db, order, current_user.email, "Order cancelled by administrator.")
     db.commit()
     return {"message": "Order cancelled"}

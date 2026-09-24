@@ -39,6 +39,34 @@ class OrderStatusHistoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PaymentHistoryOut(BaseModel):
+    id: int
+    from_status: str | None = None
+    to_status: str
+    note: str | None = None
+    changed_by: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PaymentOut(BaseModel):
+    payment_id: int
+    order_id: int
+    payment_method: str
+    payment_status: str
+    amount: float
+    currency: str
+    provider: str
+    provider_transaction_id: str | None = None
+    payment_reference: str | None = None
+    failure_reason: str | None = None
+    paid_at: datetime | None = None
+    history: list[PaymentHistoryOut] = []
+
+    model_config = {"from_attributes": True}
+
+
 class OrderOut(BaseModel):
     order_id: int
     order_number: str
@@ -65,6 +93,7 @@ class OrderOut(BaseModel):
     updated_at: datetime | None = None
     items: list[OrderItemOut] = []
     status_history: list[OrderStatusHistoryOut] = []
+    payment: PaymentOut | None = None
 
     model_config = {"from_attributes": True}
 

@@ -59,7 +59,7 @@ def create_inventory_transaction(
         product_id=product.product_id,
         inventory_id=inventory.inventory_id,
         transaction_type=transaction_type,
-        quantity=quantity,
+        quantity=abs(quantity),
         reference_type=reference_type,
         reference_id=str(reference_id) if reference_id is not None else None,
         previous_stock=previous_stock,

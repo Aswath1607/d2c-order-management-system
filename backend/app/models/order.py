@@ -26,7 +26,7 @@ class Order(Base):
     tax_amount = Column(Float, default=0.0, nullable=False)
     shipping_charge = Column(Float, default=0.0, nullable=False)
     total_amount = Column(Float, default=0.0, nullable=False)
-    payment_status = Column(String(20), default="PENDING", nullable=False, index=True)
+    payment_status = Column(String(30), default="PAYMENT_PENDING", nullable=False, index=True)
     payment_method = Column(String(20), nullable=True)
     order_status = Column(String(30), default="PENDING", nullable=False, index=True)
     shipping_address = Column(Text, nullable=True)
@@ -41,3 +41,4 @@ class Order(Base):
     customer = relationship("Customer", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan")
+    payment = relationship("Payment", back_populates="order", uselist=False, cascade="all, delete-orphan")

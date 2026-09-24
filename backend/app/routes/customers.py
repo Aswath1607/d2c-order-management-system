@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user, require_admin
@@ -8,7 +9,7 @@ from app.models.customer import Customer
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.user import User
-from app.schemas.customer import CustomerAdminOut, CustomerAdminUpdate, CustomerCreate, CustomerListResponse, CustomerOut, CustomerStatistics
+from app.schemas.customer import CustomerAdminOut, CustomerAdminUpdate, CustomerCreate, CustomerListResponse, CustomerOut, CustomerProfileUpdate, CustomerStatistics
 
 router = APIRouter()
 
@@ -65,6 +66,37 @@ def admin_customer_payload(customer: Customer, user: User, total_orders=0, total
 def get_my_customer(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     customer = db.query(Customer).filter(Customer.user_id == current_user.id).first()
     if not customer: raise HTTPException(status_code=404, detail="Customer profile not found")
+    return customer
+
+
+@router.put("/me", response_model=CustomerOut)
+def update_my_customer(payload: CustomerProfileUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    customer = db.query(Customer).filter(Customer.user_id == current_user.id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer profile not found")
+
+    email = payload.email.lower()
+    duplicate_user = db.query(User).filter(User.email == email, User.id != current_user.id).first()
+    duplicate_customer = db.query(Customer).filter(Customer.email == email, Customer.customer_id != customer.customer_id).first()
+    if duplicate_user or duplicate_customer:
+        raise HTTPException(status_code=409, detail="This email address is already in use.")
+
+    customer_data = payload.model_dump()
+    customer_data["email"] = email
+    for field, value in customer_data.items():
+        setattr(customer, field, value)
+    current_user.name = f"{payload.first_name.strip()} {payload.last_name.strip()}"
+    current_user.email = email
+
+    try:
+        db.commit()
+        db.refresh(customer)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This email address is already in use.")
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Profile update could not be completed")
     return customer
 
 
