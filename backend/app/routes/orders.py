@@ -1,3 +1,5 @@
+from datetime import datetime, time, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -9,9 +11,10 @@ from app.models.inventory import Inventory
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
+from app.models.order_tracking_history import OrderTrackingHistory
 from app.models.product import Product
 from app.models.user import User
-from app.schemas.order import OrderCreate, OrderListResponse, OrderOut, OrderStatusHistoryOut, PaymentOut
+from app.schemas.order import OrderCreate, OrderListResponse, OrderOut, OrderStatusHistoryOut, PaymentOut, TrackingUpdate
 from app.services.order_service import cancel_order_transaction, create_order_transaction, record_order_status_history, transition_allowed
 from app.services.payment_service import initiate_mock_payment, mark_cod_paid
 
@@ -150,6 +153,8 @@ def update_order_status(order_id: int, payload: dict, db: Session = Depends(get_
         else:
             order.order_status = new_status
             record_order_status_history(db, order, new_status, payload.get("note"), current_user.email)
+            if new_status == "DELIVERED" and order.delivered_at is None:
+                order.delivered_at = datetime.now(timezone.utc)
         db.commit()
     except HTTPException:
         db.rollback()
@@ -162,19 +167,30 @@ def update_order_status(order_id: int, payload: dict, db: Session = Depends(get_
 
 
 @router.patch("/{order_id}/tracking")
-def update_order_tracking(order_id: int, payload: dict, db: Session = Depends(get_db), current_user=Depends(require_admin)):
+def update_order_tracking(order_id: int, payload: TrackingUpdate, db: Session = Depends(get_db), current_user=Depends(require_admin)):
     order = db.query(Order).filter(Order.order_id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if payload.get("tracking_number") is not None:
-        order.tracking_number = payload["tracking_number"]
-    if payload.get("courier_name") is not None:
-        order.courier_name = payload["courier_name"]
-    if payload.get("estimated_delivery") is not None:
-        order.estimated_delivery = payload["estimated_delivery"]
-    db.commit()
-    db.refresh(order)
-    return order
+    try:
+        if payload.tracking_number is not None:
+            order.tracking_number = payload.tracking_number
+        if payload.courier_name is not None:
+            order.courier_name = payload.courier_name
+        if payload.estimated_delivery is not None:
+            order.estimated_delivery = datetime.combine(payload.estimated_delivery, time.min, tzinfo=timezone.utc)
+        db.add(OrderTrackingHistory(
+            order_id=order.order_id,
+            changed_by_user_id=current_user.id,
+            tracking_number=order.tracking_number,
+            courier_name=order.courier_name,
+            estimated_delivery=order.estimated_delivery,
+        ))
+        db.commit()
+        db.refresh(order)
+        return order
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Tracking information could not be updated")
 
 
 @router.delete("/{order_id}")

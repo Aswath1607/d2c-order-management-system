@@ -73,11 +73,12 @@ export default function OrderDetailPage() {
       </div>
       <div className="surface h-fit p-5">
         <h2 className="text-lg font-bold text-slate-900">Tracking</h2>
-        {order.tracking_number || order.courier_name || order.estimated_delivery ? (
+        {order.tracking_number || order.courier_name || order.estimated_delivery || order.delivered_at ? (
           <div className="mt-4 space-y-3 text-sm text-slate-600">
             {order.tracking_number && <div className="flex justify-between"><span>Tracking Number</span><span className="font-medium text-slate-800">{order.tracking_number}</span></div>}
             {order.courier_name && <div className="flex justify-between"><span>Courier</span><span className="font-medium text-slate-800">{order.courier_name}</span></div>}
             {order.estimated_delivery && <div className="flex justify-between"><span>Estimated Delivery</span><span className="font-medium text-slate-800">{new Date(order.estimated_delivery).toLocaleDateString()}</span></div>}
+            {order.delivered_at && <div className="flex justify-between"><span>Delivered At</span><span className="font-medium text-slate-800">{new Date(order.delivered_at).toLocaleString()}</span></div>}
           </div>
         ) : (
           <p className="mt-4 text-sm text-slate-500">Tracking information will appear once the order is shipped.</p>

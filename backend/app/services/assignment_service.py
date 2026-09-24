@@ -77,6 +77,8 @@ def cancel_assignment(db: Session, assignment: OrderAssignment) -> OrderAssignme
 def update_assignment_status(db: Session, assignment: OrderAssignment, user: User, target_status: str) -> OrderAssignment:
     if assignment.assigned_to_user_id != user.id:
         raise HTTPException(status_code=403, detail="You are not assigned to this order")
+    if assignment.assignment_type != user.role:
+        raise HTTPException(status_code=403, detail="This assignment is not valid for your role")
     if target_status == "ACCEPTED" and assignment.status != "ASSIGNED":
         raise HTTPException(status_code=409, detail="Only assigned work can be accepted")
     if target_status == "COMPLETED" and assignment.status != "ACCEPTED":

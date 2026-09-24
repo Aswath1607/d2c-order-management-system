@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.assignment import AssignmentOut
 
@@ -16,6 +16,33 @@ class OrderCreate(BaseModel):
     shipping_address: str
     payment_method: str = "COD"
     items: list[OrderItemCreate]
+
+
+class TrackingUpdate(BaseModel):
+    tracking_number: str | None = Field(default=None, max_length=100)
+    courier_name: str | None = Field(default=None, max_length=100)
+    estimated_delivery: date | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_tracking_field(cls, value):
+        if not isinstance(value, dict) or not any(item is not None for item in value.values()):
+            raise ValueError("At least one tracking field is required")
+        return value
+
+    @model_validator(mode="after")
+    def trim_tracking_fields(self):
+        if self.tracking_number is not None:
+            self.tracking_number = self.tracking_number.strip()
+            if not self.tracking_number:
+                raise ValueError("Tracking number cannot be empty")
+        if self.courier_name is not None:
+            self.courier_name = self.courier_name.strip()
+            if not self.courier_name:
+                raise ValueError("Courier name cannot be empty")
+        return self
 
 
 class OrderItemOut(BaseModel):

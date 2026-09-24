@@ -41,5 +41,6 @@ class Order(Base):
     customer = relationship("Customer", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan")
+    tracking_history = relationship("OrderTrackingHistory", back_populates="order", cascade="all, delete-orphan", order_by="OrderTrackingHistory.created_at")
     payment = relationship("Payment", back_populates="order", uselist=False, cascade="all, delete-orphan")
     assignments = relationship("OrderAssignment", back_populates="order", cascade="all, delete-orphan", order_by="OrderAssignment.created_at")

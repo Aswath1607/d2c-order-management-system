@@ -104,7 +104,8 @@ def complete_assignment(assignment_id: int, db: Session = Depends(get_db), curre
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     try:
-        update_assignment_status(db, assignment, current_user, "COMPLETED")
+        action = "MARK_PACKED" if assignment.assignment_type == "WORKER" else "MARK_DELIVERED"
+        fulfill_assignment(db, assignment_id, current_user, action)
         db.commit()
         db.refresh(assignment)
         return assignment_payload(assignment)

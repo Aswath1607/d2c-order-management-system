@@ -291,6 +291,47 @@ test.describe('D2C Phase 10 E2E', () => {
     }
   });
 
+  test('admin can ship a packed order without bypassing the lifecycle', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('token', 'mock-admin'));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, name: 'Admin', email: 'admin@example.com', role: 'ADMIN', is_active: true }) }));
+    let orderStatus = 'PACKED';
+    const order = () => ({ order_id: 1, order_number: 'ORD-SHIP-1', customer_id: 2, subtotal: 100, discount_amount: 0, tax_amount: 0, shipping_charge: 0, total_amount: 100, payment_status: 'PAYMENT_SUCCESS', payment_method: 'COD', order_status: orderStatus, items: [], status_history: [], assignments: [], payment: null });
+    await page.route('**/api/orders/1', async (route, request) => { if (request.method() === 'GET') await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(order()) }); else await route.continue(); });
+    await page.route('**/api/orders/1/status', async (route) => { orderStatus = route.request().postDataJSON().status; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(order()) }); });
+    await page.route('**/api/workers', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
+    await page.route('**/api/delivery-agents', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
+    await page.goto('/admin/orders/1');
+    await expect(page.getByRole('heading', { name: 'Order summary' })).toBeVisible();
+    await page.locator('select').first().selectOption('SHIPPED');
+    await page.getByRole('button', { name: /update status/i }).click();
+    await expect(page.getByText('Order status updated successfully')).toBeVisible();
+    await expect(page.getByText('SHIPPED', { exact: true }).first()).toBeVisible();
+  });
+
+  test('admin cannot bypass shipped before delivery', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('token', 'mock-admin'));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, name: 'Admin', email: 'admin@example.com', role: 'ADMIN', is_active: true }) }));
+    const order = { order_id: 1, order_number: 'ORD-SHIP-2', customer_id: 2, subtotal: 100, discount_amount: 0, tax_amount: 0, shipping_charge: 0, total_amount: 100, payment_status: 'PAYMENT_SUCCESS', payment_method: 'COD', order_status: 'PACKED', items: [], status_history: [], assignments: [], payment: null };
+    await page.route('**/api/orders/1', async (route, request) => { if (request.method() === 'GET') await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(order) }); else await route.continue(); });
+    await page.route('**/api/orders/1/status', async (route) => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ detail: 'Order cannot transition from PACKED to OUT_FOR_DELIVERY.' }) }));
+    await page.route('**/api/workers', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
+    await page.route('**/api/delivery-agents', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
+    await page.goto('/admin/orders/1');
+    await page.locator('select').first().selectOption('OUT_FOR_DELIVERY');
+    await page.getByRole('button', { name: /update status/i }).click();
+    await expect(page.getByText(/cannot transition from PACKED to OUT_FOR_DELIVERY/i)).toBeVisible();
+  });
+
+  test('customer sees tracking and delivered timestamp', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('token', 'mock-customer'));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 2, name: 'Customer', email: 'customer@example.com', role: 'CUSTOMER', is_active: true }) }));
+    await page.route('**/api/orders/1', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ order_id: 1, order_number: 'ORD-TRACK-1', customer_id: 2, subtotal: 100, discount_amount: 0, tax_amount: 0, shipping_charge: 0, total_amount: 100, payment_status: 'PAYMENT_SUCCESS', payment_method: 'COD', order_status: 'DELIVERED', tracking_number: 'TRK-001', courier_name: 'Courier A', estimated_delivery: '2026-10-01T00:00:00Z', delivered_at: '2026-09-24T12:30:00Z', items: [], status_history: [{ id: 1, order_id: 1, status: 'DELIVERED', created_at: '2026-09-24T12:30:00Z' }], payment: null }) }));
+    await page.goto('/customer/orders/1');
+    await expect(page.getByText('TRK-001')).toBeVisible();
+    await expect(page.getByText('Courier A')).toBeVisible();
+    await expect(page.getByText('Delivered At')).toBeVisible();
+  });
+
   test('bad status transition shows 409 and toast', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/orders');
