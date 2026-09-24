@@ -161,6 +161,8 @@ export interface OrderAssignment {
   updated_at: string;
 }
 
+export type FulfillmentAction = 'START_PROCESSING' | 'MARK_PACKED' | 'MARK_OUT_FOR_DELIVERY' | 'MARK_DELIVERED';
+
 export interface Payment {
   payment_id: number;
   order_id: number;

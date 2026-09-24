@@ -112,9 +112,12 @@ test.describe('D2C Phase 10 E2E', () => {
   test('worker can accept an assigned order from My Assignments', async ({ page }) => {
     await page.route('**/api/auth/login', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'mock-worker', token_type: 'bearer' }) }));
     await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 10, name: 'Worker A', email: 'worker@example.com', role: 'WORKER', is_active: true }) }));
-    let accepted = false;
-    await page.route('**/api/worker/assignments', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: 'CONFIRMED', assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: accepted ? 'ACCEPTED' : 'ASSIGNED', assigned_by_user_id: 1, assigned_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }] }) }));
-    await page.route('**/api/assignments/9/accept', async (route) => { accepted = true; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: 'CONFIRMED', assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: 'ACCEPTED', assigned_by_user_id: 1, assigned_at: new Date().toISOString(), accepted_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }); });
+    let assignmentStatus = 'ASSIGNED';
+    let orderStatus = 'CONFIRMED';
+    const assignmentPayload = () => ({ id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: orderStatus, assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: assignmentStatus, assigned_by_user_id: 1, assigned_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    await page.route('**/api/worker/assignments', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [assignmentPayload()] }) }));
+    await page.route('**/api/assignments/9/accept', async (route) => { assignmentStatus = 'ACCEPTED'; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(assignmentPayload()) }); });
+    await page.route('**/api/assignments/9/fulfillment', async (route) => { const action = route.request().postDataJSON().action; orderStatus = action === 'START_PROCESSING' ? 'PROCESSING' : 'PACKED'; assignmentStatus = action === 'MARK_PACKED' ? 'COMPLETED' : 'ACCEPTED'; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(assignmentPayload()) }); });
     await page.goto('/login');
     await page.getByLabel('Email').fill('worker@example.com');
     await page.getByLabel('Password').fill('password123');
@@ -122,6 +125,38 @@ test.describe('D2C Phase 10 E2E', () => {
     await expect(page.getByRole('heading', { name: 'My Assignments' })).toBeVisible();
     await page.getByRole('button', { name: 'Accept' }).click();
     await expect(page.getByText(/Assignment: ACCEPTED/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start processing' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark out for delivery' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Start processing' }).click();
+    await expect(page.getByText(/Order status: PROCESSING/)).toBeVisible();
+    await page.getByRole('button', { name: 'Mark packed' }).click();
+    await expect(page.getByText(/Order status: PACKED/)).toBeVisible();
+    await expect(page.getByText(/Assignment: COMPLETED/)).toBeVisible();
+  });
+
+  test('delivery agent can complete delivery fulfillment actions', async ({ page }) => {
+    await page.route('**/api/auth/login', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'mock-agent', token_type: 'bearer' }) }));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 11, name: 'Agent A', email: 'agent@example.com', role: 'DELIVERY_AGENT', is_active: true }) }));
+    let assignmentStatus = 'ASSIGNED';
+    let orderStatus = 'SHIPPED';
+    const assignmentPayload = () => ({ id: 10, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: orderStatus, assigned_to_user_id: 11, assigned_to_name: 'Agent A', assignment_type: 'DELIVERY_AGENT', status: assignmentStatus, assigned_by_user_id: 1, assigned_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    await page.route('**/api/delivery-agent/assignments', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [assignmentPayload()] }) }));
+    await page.route('**/api/assignments/10/accept', async (route) => { assignmentStatus = 'ACCEPTED'; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(assignmentPayload()) }); });
+    await page.route('**/api/assignments/10/fulfillment', async (route) => { const action = route.request().postDataJSON().action; orderStatus = action === 'MARK_OUT_FOR_DELIVERY' ? 'OUT_FOR_DELIVERY' : 'DELIVERED'; assignmentStatus = action === 'MARK_DELIVERED' ? 'COMPLETED' : 'ACCEPTED'; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(assignmentPayload()) }); });
+    await page.goto('/login');
+    await page.getByLabel('Email').fill('agent@example.com');
+    await page.getByLabel('Password').fill('password123');
+    await page.getByRole('button', { name: /sign in/i }).click();
+    await expect(page.getByRole('heading', { name: 'My Deliveries' })).toBeVisible();
+    await page.getByRole('button', { name: 'Accept' }).click();
+    await expect(page.getByText(/Assignment: ACCEPTED/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark out for delivery' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start processing' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Mark out for delivery' }).click();
+    await expect(page.getByText(/Order status: OUT_FOR_DELIVERY/)).toBeVisible();
+    await page.getByRole('button', { name: 'Mark delivered' }).click();
+    await expect(page.getByText(/Order status: DELIVERED/)).toBeVisible();
+    await expect(page.getByText(/Assignment: COMPLETED/)).toBeVisible();
   });
 
   test('direct nested routes serve the SPA entry point', async ({ page }) => {

@@ -6,8 +6,8 @@ from app.database.connection import get_db
 from app.models.order import Order
 from app.models.order_assignment import OrderAssignment
 from app.models.user import User
-from app.schemas.assignment import AssignmentCreate, AssignmentListResponse, AssignmentOut
-from app.services.assignment_service import ACTIVE_ASSIGNMENT_STATUSES, assign_order, assignment_payload, cancel_assignment, update_assignment_status
+from app.schemas.assignment import AssignmentCreate, AssignmentListResponse, AssignmentOut, FulfillmentActionRequest
+from app.services.assignment_service import ACTIVE_ASSIGNMENT_STATUSES, assign_order, assignment_payload, cancel_assignment, fulfill_assignment, update_assignment_status
 
 router = APIRouter()
 
@@ -111,3 +111,18 @@ def complete_assignment(assignment_id: int, db: Session = Depends(get_db), curre
     except HTTPException:
         db.rollback()
         raise
+
+
+@router.patch("/assignments/{assignment_id}/fulfillment", response_model=AssignmentOut)
+def fulfill_order_assignment(assignment_id: int, payload: FulfillmentActionRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    try:
+        assignment = fulfill_assignment(db, assignment_id, current_user, payload.action)
+        db.commit()
+        db.refresh(assignment)
+        return assignment_payload(assignment)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Unable to fulfill assignment")

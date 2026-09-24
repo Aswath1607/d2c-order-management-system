@@ -6,12 +6,16 @@ from pydantic import BaseModel, Field
 
 AssignmentType = Literal["WORKER", "DELIVERY_AGENT"]
 AssignmentStatus = Literal["ASSIGNED", "ACCEPTED", "COMPLETED", "REASSIGNED", "CANCELLED"]
+FulfillmentAction = Literal["START_PROCESSING", "MARK_PACKED", "MARK_OUT_FOR_DELIVERY", "MARK_DELIVERED"]
 
 
 class AssignmentCreate(BaseModel):
     assigned_to_user_id: int = Field(..., gt=0)
     assignment_type: AssignmentType
     notes: str | None = None
+
+class FulfillmentActionRequest(BaseModel):
+    action: FulfillmentAction
 
 
 class AssignmentOut(BaseModel):

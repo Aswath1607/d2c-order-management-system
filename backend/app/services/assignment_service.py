@@ -6,8 +6,15 @@ from sqlalchemy.orm import Session
 from app.models.order import Order
 from app.models.order_assignment import OrderAssignment
 from app.models.user import User
+from app.services.order_service import record_order_status_history, transition_allowed
 
 ACTIVE_ASSIGNMENT_STATUSES = {"ASSIGNED", "ACCEPTED"}
+FULFILLMENT_RULES = {
+    "START_PROCESSING": ("WORKER", "CONFIRMED", "PROCESSING", False),
+    "MARK_PACKED": ("WORKER", "PROCESSING", "PACKED", True),
+    "MARK_OUT_FOR_DELIVERY": ("DELIVERY_AGENT", "SHIPPED", "OUT_FOR_DELIVERY", False),
+    "MARK_DELIVERED": ("DELIVERY_AGENT", "OUT_FOR_DELIVERY", "DELIVERED", True),
+}
 
 
 def assignment_payload(assignment: OrderAssignment) -> dict:
@@ -83,5 +90,39 @@ def update_assignment_status(db: Session, assignment: OrderAssignment, user: Use
         assignment.accepted_at = now
     else:
         assignment.completed_at = now
+    db.flush()
+    return assignment
+
+
+def fulfill_assignment(db: Session, assignment_id: int, user: User, action: str) -> OrderAssignment:
+    rule = FULFILLMENT_RULES.get(action)
+    if not rule:
+        raise HTTPException(status_code=400, detail="Unsupported fulfillment action")
+
+    assignment = db.query(OrderAssignment).filter(OrderAssignment.id == assignment_id).with_for_update().first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    if assignment.assigned_to_user_id != user.id:
+        raise HTTPException(status_code=403, detail="You are not assigned to this order")
+    expected_type, expected_order_status, target_order_status, completes_assignment = rule
+    if user.role != expected_type or assignment.assignment_type != expected_type:
+        raise HTTPException(status_code=403, detail="This assignment is not valid for your role")
+    if assignment.status != "ACCEPTED":
+        raise HTTPException(status_code=409, detail="Assignment must be accepted first")
+
+    order = db.query(Order).filter(Order.order_id == assignment.order_id).with_for_update().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.order_status != expected_order_status:
+        raise HTTPException(status_code=409, detail=f"Order must be {expected_order_status} before {action}")
+    if not transition_allowed(order.order_status, target_order_status):
+        raise HTTPException(status_code=409, detail=f"Order cannot transition from {order.order_status} to {target_order_status}")
+
+    record_order_status_history(db, order, target_order_status, f"{action.replace('_', ' ').title()} by {user.email}.", user.email)
+    order.order_status = target_order_status
+    if action == "MARK_DELIVERED":
+        order.delivered_at = datetime.now(timezone.utc)
+    if completes_assignment:
+        update_assignment_status(db, assignment, user, "COMPLETED")
     db.flush()
     return assignment
