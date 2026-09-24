@@ -19,6 +19,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev -- --host 0.0.0.0 --port 4173',
+    env: { VITE_API_BASE_URL: '/api' },
     url: 'http://localhost:4173',
     reuseExistingServer: false,
     timeout: 120000,

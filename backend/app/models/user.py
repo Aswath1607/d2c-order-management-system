@@ -26,3 +26,5 @@ class User(Base):
     customer = relationship("Customer", back_populates="user", uselist=False, cascade="all, delete-orphan")
     worker_profile = relationship("WorkerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     delivery_agent_profile = relationship("DeliveryAgentProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    assigned_order_assignments = relationship("OrderAssignment", foreign_keys="OrderAssignment.assigned_to_user_id", back_populates="assigned_to")
+    created_order_assignments = relationship("OrderAssignment", foreign_keys="OrderAssignment.assigned_by_user_id", back_populates="assigned_by")

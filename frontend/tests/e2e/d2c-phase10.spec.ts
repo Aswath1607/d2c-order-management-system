@@ -30,14 +30,14 @@ test.describe('D2C Phase 10 E2E', () => {
   test('worker and delivery agent logins reach isolated placeholders', async ({ page }) => {
     await mockRoleLogin(page, 'WORKER');
     await expect(page).toHaveURL(/\/worker$/);
-    await expect(page.getByRole('heading', { name: /worker workspace coming soon/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /my assignments/i })).toBeVisible();
 
     await page.evaluate(() => localStorage.clear());
     await page.unroute('**/auth/me');
     await page.unroute('**/auth/login');
     await mockRoleLogin(page, 'DELIVERY_AGENT');
     await expect(page).toHaveURL(/\/delivery-agent$/);
-    await expect(page.getByRole('heading', { name: /delivery workspace coming soon/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /my deliveries/i })).toBeVisible();
   });
 
   test('new roles cannot access admin or customer-only routes', async ({ page }) => {
@@ -57,6 +57,71 @@ test.describe('D2C Phase 10 E2E', () => {
     await expect(page).toHaveURL(/\/customer$/);
     await page.goto('/delivery-agent');
     await expect(page).toHaveURL(/\/customer$/);
+  });
+
+  test('admin assignment controls assign a worker and show history', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('token', 'mock-admin'));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, name: 'Admin', email: 'admin@example.com', role: 'ADMIN', is_active: true }) }));
+    const assignment = { id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: 'CONFIRMED', assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: 'ASSIGNED', assigned_by_user_id: 1, assigned_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    let assignmentHistory: any[] = [];
+    const order = { order_id: 1, order_number: 'ORD-ASSIGN-1', customer_id: 2, subtotal: 100, discount_amount: 0, tax_amount: 0, shipping_charge: 0, total_amount: 100, payment_status: 'PAYMENT_PENDING', payment_method: 'COD', order_status: 'CONFIRMED', items: [], status_history: [], assignments: [], payment: null };
+
+    await page.route('**/api/orders/**', async (route, request) => {
+      const url = new URL(request.url());
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+            'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+          },
+          body: '',
+        });
+        return;
+      }
+
+      if (url.pathname === '/api/orders/1' && request.method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...order, assignments: assignmentHistory }),
+        });
+        return;
+      }
+
+      if (url.pathname === '/api/orders/1/assignments' && request.method() === 'POST') {
+        assignmentHistory = [assignment];
+        await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(assignment) });
+        return;
+      }
+
+      await route.continue();
+    });
+
+    await page.route('**/api/workers', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 10, name: 'Worker A', email: 'worker@example.com', role: 'WORKER', is_active: true, profile_id: 1, code: 'EMP-1' }]) }));
+    await page.route('**/api/delivery-agents', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
+    await page.goto('/admin/orders/1');
+    await expect(page.getByRole('heading', { name: 'Assignments' })).toBeVisible();
+    await page.getByLabel('Select worker').selectOption('10');
+
+    await page.getByRole('button', { name: 'Assign' }).first().click();
+    await expect(page.getByText(/Worker: Worker A/i)).toBeVisible();
+  });
+
+  test('worker can accept an assigned order from My Assignments', async ({ page }) => {
+    await page.route('**/api/auth/login', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: 'mock-worker', token_type: 'bearer' }) }));
+    await page.route('**/api/auth/me', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 10, name: 'Worker A', email: 'worker@example.com', role: 'WORKER', is_active: true }) }));
+    let accepted = false;
+    await page.route('**/api/worker/assignments', async (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: 'CONFIRMED', assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: accepted ? 'ACCEPTED' : 'ASSIGNED', assigned_by_user_id: 1, assigned_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }] }) }));
+    await page.route('**/api/assignments/9/accept', async (route) => { accepted = true; await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 9, order_id: 1, order_number: 'ORD-ASSIGN-1', order_status: 'CONFIRMED', assigned_to_user_id: 10, assigned_to_name: 'Worker A', assignment_type: 'WORKER', status: 'ACCEPTED', assigned_by_user_id: 1, assigned_at: new Date().toISOString(), accepted_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }); });
+    await page.goto('/login');
+    await page.getByLabel('Email').fill('worker@example.com');
+    await page.getByLabel('Password').fill('password123');
+    await page.getByRole('button', { name: /sign in/i }).click();
+    await expect(page.getByRole('heading', { name: 'My Assignments' })).toBeVisible();
+    await page.getByRole('button', { name: 'Accept' }).click();
+    await expect(page.getByText(/Assignment: ACCEPTED/)).toBeVisible();
   });
 
   test('direct nested routes serve the SPA entry point', async ({ page }) => {

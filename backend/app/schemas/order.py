@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.schemas.assignment import AssignmentOut
+
 
 class OrderItemCreate(BaseModel):
     product_id: int
@@ -94,6 +96,7 @@ class OrderOut(BaseModel):
     items: list[OrderItemOut] = []
     status_history: list[OrderStatusHistoryOut] = []
     payment: PaymentOut | None = None
+    assignments: list[AssignmentOut] = []
 
     model_config = {"from_attributes": True}
 

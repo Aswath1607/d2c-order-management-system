@@ -7,6 +7,7 @@ from app.models.inventory_transaction import InventoryTransaction
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
+from app.models.order_assignment import OrderAssignment
 from app.models.payment import Payment, PaymentHistory
 from app.models.product import Product
 from app.models.user import User

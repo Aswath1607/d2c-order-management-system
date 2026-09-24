@@ -140,6 +140,25 @@ export interface Order {
   items: OrderItem[];
   status_history?: OrderStatusHistoryEntry[];
   payment?: Payment | null;
+  assignments?: OrderAssignment[];
+}
+
+export interface OrderAssignment {
+  id: number;
+  order_id: number;
+  order_number: string;
+  order_status: string;
+  assigned_to_user_id: number;
+  assigned_to_name: string;
+  assignment_type: 'WORKER' | 'DELIVERY_AGENT';
+  status: 'ASSIGNED' | 'ACCEPTED' | 'COMPLETED' | 'REASSIGNED' | 'CANCELLED';
+  assigned_by_user_id: number;
+  assigned_at: string;
+  accepted_at?: string | null;
+  completed_at?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Payment {
