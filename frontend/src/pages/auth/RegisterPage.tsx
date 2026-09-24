@@ -1,6 +1,27 @@
 import { FormEvent, useState } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../../services/authApi';
+
+function getRegistrationError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return 'Registration failed. Please try again.';
+  }
+
+  const detail = error.response?.data?.detail;
+  if (typeof detail === 'string') {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (typeof item === 'string' ? item : item?.msg))
+      .filter((message): message is string => Boolean(message));
+    if (messages.length > 0) {
+      return messages.join(', ');
+    }
+  }
+  return 'Registration failed. Please try again.';
+}
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -16,8 +37,8 @@ export default function RegisterPage() {
     try {
       await authApi.register(form);
       navigate('/login', { replace: true });
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      setError(getRegistrationError(err));
     } finally {
       setIsSubmitting(false);
     }

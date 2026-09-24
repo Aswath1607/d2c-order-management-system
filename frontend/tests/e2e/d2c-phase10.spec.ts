@@ -14,6 +14,25 @@ async function login(page: any, email: string, password: string) {
 }
 
 test.describe('D2C Phase 10 E2E', () => {
+  test('registration API failure keeps the form visible with an error', async ({ page }) => {
+    await page.route('**/auth/register', async (route) => {
+      await route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: [{ msg: 'value is not a valid email address' }] }),
+      });
+    });
+
+    await page.goto('/register');
+    await page.getByPlaceholder('Full name').fill('Aswath');
+    await page.getByPlaceholder('Email').fill('invalid-email');
+    await page.getByPlaceholder('Password').fill('password123');
+    await page.getByRole('button', { name: 'Register' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Create customer account' })).toBeVisible();
+    await expect(page.getByText('value is not a valid email address')).toBeVisible();
+  });
+
   test('admin login and admin dashboard load', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(ADMIN_EMAIL);

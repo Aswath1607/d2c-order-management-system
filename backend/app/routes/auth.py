@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -16,30 +17,46 @@ router = APIRouter()
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register_user(payload: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == payload.email.lower()).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="User with this email already exists")
+    normalized_name = " ".join(payload.name.split())
+    name_parts = normalized_name.split()
+    if len(normalized_name) < 2 or not name_parts:
+        raise HTTPException(status_code=422, detail="Name must contain at least two characters")
 
-    user = User(
-        name=payload.name,
-        email=payload.email.lower(),
-        password_hash=get_password_hash(payload.password),
-        role="CUSTOMER",
-    )
-    db.add(user)
-    db.flush()
+    email = payload.email.lower()
+    first_name = name_parts[0]
+    last_name = " ".join(name_parts[1:]) or "Customer"
 
-    customer = Customer(
-        user_id=user.id,
-        first_name=payload.name.split()[0] if payload.name else "Customer",
-        last_name=" ".join(payload.name.split()[1:]) if len(payload.name.split()) > 1 else "",
-        email=payload.email.lower(),
-        status="ACTIVE",
-    )
-    db.add(customer)
-    db.commit()
-    db.refresh(user)
-    return user
+    try:
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+
+        user = User(
+            name=normalized_name,
+            email=email,
+            password_hash=get_password_hash(payload.password),
+            role="CUSTOMER",
+        )
+        db.add(user)
+        db.flush()
+
+        customer = Customer(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            status="ACTIVE",
+        )
+        db.add(customer)
+        db.commit()
+        db.refresh(user)
+        return user
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Registration could not be completed")
 
 
 @router.post("/login", response_model=Token)
