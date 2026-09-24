@@ -14,6 +14,17 @@ async function login(page: any, email: string, password: string) {
 }
 
 test.describe('D2C Phase 10 E2E', () => {
+  test('login opens without prefilled credentials and stays empty after refresh', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.getByLabel('Email')).toHaveValue('');
+    await expect(page.getByLabel('Password')).toHaveValue('');
+    await expect(page.getByLabel('Email')).toHaveAttribute('autocomplete', 'username');
+    await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'current-password');
+    await page.reload();
+    await expect(page.getByLabel('Email')).toHaveValue('');
+    await expect(page.getByLabel('Password')).toHaveValue('');
+  });
+
   test('Aurevia branding and theme preference persist across refresh', async ({ page }) => {
     await page.goto('/login');
     await expect(page).toHaveTitle(/Aurevia Commerce Operations/);
