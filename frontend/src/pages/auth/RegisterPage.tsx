@@ -45,18 +45,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-lg p-8">
-      <div className="mb-6"><img src="/branding/aurevia-logo-exact.png" alt="Aurevia" className="h-12 w-auto object-contain" /><h2 className="mt-5 text-2xl font-bold">Create customer account</h2></div>
+    <div className="mx-auto max-w-xl rounded-2xl bg-white p-8 shadow-lg">
+      <div className="mb-6"><span className="brand-lockup"><img src="/branding/aurevia-logo-exact.png" alt="Aurevia" className="h-10 w-auto object-contain" /></span><h2 className="mt-5 text-2xl font-bold text-slate-900">Create customer account</h2></div>
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className="w-full border rounded-md px-3 py-2" />
-        <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="w-full border rounded-md px-3 py-2" />
-        <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Password" className="w-full border rounded-md px-3 py-2" />
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-900" />
+        <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-900" />
+        <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Password" className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-600 dark:bg-slate-900" />
         {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
         <button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white rounded-md py-2 font-semibold disabled:opacity-60">
           {isSubmitting ? 'Creating account...' : 'Register'}
         </button>
       </form>
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
         Already have an account? <Link to="/login" className="text-indigo-600">Login</Link>
       </p>
     </div>

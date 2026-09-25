@@ -69,18 +69,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border bg-white/95 p-3 shadow-xl shadow-slate-900/10 backdrop-blur ${toneStyles[toast.type].border}`}
+            className={`pointer-events-auto flex w-full items-start gap-3 rounded-2xl border bg-white/95 p-3 shadow-xl shadow-slate-900/10 backdrop-blur dark:bg-slate-800/95 dark:border-slate-600 ${toneStyles[toast.type].border}`}
             role="status"
           >
             <span className={`mt-0.5 inline-flex h-2.5 w-2.5 rounded-full ${toneStyles[toast.type].badge}`} aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <div className={`text-sm font-bold ${toneStyles[toast.type].text}`}>{toast.title}</div>
-              {toast.message && <div className="mt-0.5 text-sm text-slate-700 break-words">{toast.message}</div>}
+              {toast.message && <div className="mt-0.5 break-words text-sm text-slate-700 dark:text-slate-200">{toast.message}</div>}
             </div>
             <button
               type="button"
               aria-label="Dismiss notification"
-              className="ml-2 text-slate-400 transition hover:text-slate-700"
+              className="ml-2 text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-100"
               onClick={() => dismissToast(toast.id)}
             >
               ×

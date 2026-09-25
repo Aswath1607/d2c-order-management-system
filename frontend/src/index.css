@@ -1,12 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --page-background: #f7f8fc;
+  --surface-background: #ffffff;
+  --elevated-background: #ffffff;
+  --primary-text: #111827;
+  --secondary-text: #475569;
+  --muted-text: #64748b;
+  --border-color: #e5e7eb;
+  --input-background: #f8fafc;
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #111827;
-  background: #f7f8fc;
+  color: var(--primary-text);
+  background: var(--page-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -17,7 +26,7 @@ html, body, #root {
   margin: 0;
   min-height: 100%;
   min-width: 100%;
-  background: #f7f8fc;
+  background: var(--page-background);
   overflow-x: hidden;
 }
 
@@ -31,7 +40,7 @@ a { text-decoration: none; }
 
 button, input, select, textarea { font: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgb(99 102 241 / 25%); outline-offset: 2px; }
-.surface { border: 1px solid #e5e7eb; border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgb(15 23 42 / 5%); }
+.surface { border: 1px solid var(--border-color); border-radius: 16px; background: var(--surface-background); box-shadow: 0 10px 30px rgb(15 23 42 / 5%); }
 .page-heading { letter-spacing: -0.03em; }
 .data-table th { background: #f8fafc; color: #64748b; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .data-table td, .data-table th { padding: 0.9rem 1rem; white-space: nowrap; }
@@ -39,28 +48,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .data-table tbody tr:hover { background: #fafbff; }
 
 .dark {
+  --page-background: #0f172a;
+  --surface-background: #172033;
+  --elevated-background: #1e293b;
+  --primary-text: #f8fafc;
+  --secondary-text: #cbd5e1;
+  --muted-text: #94a3b8;
+  --border-color: #334155;
+  --input-background: #0f172a;
   color-scheme: dark;
 }
-.dark html, .dark body, .dark #root { background: #0f172a; color: #e2e8f0; }
+.dark body, .dark #root { background: var(--page-background); color: var(--primary-text); }
 .dark .bg-white, .dark .surface { background: #172033; border-color: #334155; }
 .dark .bg-slate-50 { background: #1e293b; }
 .dark .bg-slate-100 { background: #273449; }
+.dark .bg-\[\#f7f8fc\] { background: #0f172a; }
 .dark .text-slate-900, .dark .text-slate-800 { color: #f8fafc; }
 .dark .text-slate-700 { color: #cbd5e1; }
 .dark .text-slate-600, .dark .text-slate-500 { color: #94a3b8; }
 .dark .text-slate-400 { color: #64748b; }
+.dark .text-slate-300 { color: #cbd5e1; }
 .dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-300 { border-color: #334155; }
 .dark input, .dark select, .dark textarea { background: #0f172a; border-color: #475569; color: #f8fafc; }
 .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
 .dark .data-table th { background: #1e293b; color: #94a3b8; }
+.dark .data-table td { color: #cbd5e1; }
 .dark .data-table tbody tr { border-color: #334155; }
 .dark .data-table tbody tr:hover { background: #1e293b; }
-.dark .bg-indigo-50 { background: #1e1b4b; }
-.dark .text-indigo-700 { color: #a5b4fc; }
+.dark .bg-indigo-50 { background: #1e1b4b; color: #c7d2fe; }
 .dark .bg-emerald-50 { background: #052e2b; }
 .dark .text-emerald-700 { color: #6ee7b7; }
 .dark .bg-amber-50 { background: #422006; }
 .dark .text-amber-700, .dark .text-amber-900 { color: #fcd34d; }
 .dark .bg-red-50 { background: #450a0a; }
 .dark .text-red-700, .dark .text-red-900 { color: #fca5a5; }
+.dark .text-indigo-600 { color: #a5b4fc; }
+.dark .text-indigo-700 { color: #c7d2fe; }
+.dark .border-indigo-100 { border-color: #3730a3; }
+.dark .border-emerald-100 { border-color: #065f46; }
+.dark .border-amber-200 { border-color: #92400e; }
+.dark .border-red-200 { border-color: #991b1b; }
 .dark .shadow-sm, .dark .shadow-lg { box-shadow: 0 10px 30px rgb(2 6 23 / 30%); }
+
+.brand-lockup { display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: 0.5rem; padding: 0.25rem; background: transparent; }
+.dark .brand-lockup { border-color: rgb(148 163 184 / 20%); background: rgb(248 250 252 / 95%); }
